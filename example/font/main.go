@@ -48,7 +48,7 @@ func (g *game) Update() error {
 	demo.LogWindow(g.ctx)
 	demo.StyleWindow(g.ctx)
 	// to use a custom font apart from the default, you can do:
-	// g.ctx.PushStyleFont(ebitenui.RegisterFont(fontFace))
+	// g.ctx.PushStyleFont(ebitenui.FontID(fontFace))
 	// g.ctx.PopStyle()
 	g.ctx.End()
 	return nil

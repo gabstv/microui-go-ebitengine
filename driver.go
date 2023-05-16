@@ -31,11 +31,13 @@ type driver struct {
 type DriverOption func(*driverOptions)
 
 type driverOptions struct {
-	AtlasTexture      *ebiten.Image
-	AtlasRects        []microui.Rect
-	ScrollMultiplierX float64
-	ScrollMultiplierY float64
-	DefaultFont       font.Face
+	AtlasTexture       *ebiten.Image
+	AtlasRects         []microui.Rect
+	ScrollMultiplierX  float64
+	ScrollMultiplierY  float64
+	DefaultFont        font.Face
+	DefaultFontOffsetX int
+	DefaultFontOffsetY int
 }
 
 func WithAtlasTexture(tex *ebiten.Image) DriverOption {
@@ -47,6 +49,13 @@ func WithAtlasTexture(tex *ebiten.Image) DriverOption {
 func WithDefaultFont(ff font.Face) DriverOption {
 	return func(o *driverOptions) {
 		o.DefaultFont = ff
+	}
+}
+
+func WithDefaultFontOffset(x, y int) DriverOption {
+	return func(o *driverOptions) {
+		o.DefaultFontOffsetX = x
+		o.DefaultFontOffsetY = y
 	}
 }
 
@@ -173,6 +182,9 @@ func (d *driver) Draw(screen *ebiten.Image) {
 }
 
 func (d *driver) drawText(clip *ebiten.Image, cmd textCommand) {
+	if clip == nil {
+		return
+	}
 	if cmd.Font == 0 && d.options.DefaultFont == nil {
 		// draw using default ebiten font
 		// the drawback is that the color cannot be changed
@@ -180,17 +192,26 @@ func (d *driver) drawText(clip *ebiten.Image, cmd textCommand) {
 		return
 	}
 	var ff font.Face
+	var offx, offy int
 	if cmd.Font == 0 {
 		ff = d.options.DefaultFont
+		offx = d.options.DefaultFontOffsetX
+		offy = d.options.DefaultFontOffsetY
 	} else {
-		ff = Font(cmd.Font)
+		w := Font(cmd.Font)
+		ff = w.Face
+		offx = w.OffsetX
+		offy = w.OffsetY
 	}
 	// b := text.BoundString(ff, cmd.Text)
 	c := convertColor(cmd.Color)
-	text.Draw(clip, cmd.Text, ff, int(cmd.Pos.X), int(cmd.Pos.Y), c)
+	text.Draw(clip, cmd.Text, ff, int(cmd.Pos.X)+offx, int(cmd.Pos.Y)+offy, c)
 }
 
 func (d *driver) drawRect(clip *ebiten.Image, cmd rectCommand) {
+	if clip == nil {
+		return
+	}
 	rect := convertRect(d.options.AtlasRects[6])
 	subim := d.options.AtlasTexture.SubImage(rect).(*ebiten.Image)
 	geom := ebiten.GeoM{}
@@ -205,6 +226,9 @@ func (d *driver) drawRect(clip *ebiten.Image, cmd rectCommand) {
 }
 
 func (d *driver) drawIcon(clip *ebiten.Image, cmd iconCommand) {
+	if clip == nil {
+		return
+	}
 	iconimg := d.options.AtlasTexture.SubImage(convertRect(d.options.AtlasRects[cmd.ID])).(*ebiten.Image)
 	geom := ebiten.GeoM{}
 	geom.Translate(float64(cmd.Rect.X), float64(cmd.Rect.Y))

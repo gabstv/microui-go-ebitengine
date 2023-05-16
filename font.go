@@ -9,13 +9,19 @@ import (
 )
 
 var (
-	fontmap        = make(map[microui.Font]font.Face)
+	fontmap        = make(map[microui.Font]FontWrapper)
 	inversefontmap = make(map[font.Face]microui.Font)
 	lastFontID     int
 	fontMutex      sync.RWMutex
 )
 
-func RegisterFont(ff font.Face) microui.Font {
+type FontWrapper struct {
+	font.Face
+	OffsetX int
+	OffsetY int
+}
+
+func FontID(ff font.Face) microui.Font {
 	fontMutex.Lock()
 	defer fontMutex.Unlock()
 	// check if exists
@@ -24,18 +30,41 @@ func RegisterFont(ff font.Face) microui.Font {
 	}
 	lastFontID++
 	id := microui.Font(lastFontID)
-	fontmap[id] = ff
+	fontmap[id] = FontWrapper{
+		Face: ff,
+	}
 	inversefontmap[ff] = id
 	return id
 }
-func DeregisterFont(ff font.Face) {
+
+func SetFontOffsets(ff font.Face, x, y int) {
+	id := FontID(ff)
+	fontMutex.Lock()
+	defer fontMutex.Unlock()
+	fw := fontmap[id]
+	fw.OffsetX = x
+	fw.OffsetY = y
+	fontmap[id] = fw
+}
+
+func RemoveFont(ff font.Face) {
+	fontMutex.Lock()
+	defer fontMutex.Unlock()
 	if id, ok := inversefontmap[ff]; ok {
 		delete(fontmap, id)
 		delete(inversefontmap, ff)
 	}
 }
 
-func Font(id microui.Font) font.Face {
+func RemoveAllFonts() {
+	fontMutex.Lock()
+	defer fontMutex.Unlock()
+	fontmap = make(map[microui.Font]FontWrapper)
+	inversefontmap = make(map[font.Face]microui.Font)
+	lastFontID = 0
+}
+
+func Font(id microui.Font) FontWrapper {
 	fontMutex.RLock()
 	defer fontMutex.RUnlock()
 	return fontmap[id]

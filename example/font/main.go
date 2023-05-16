@@ -13,7 +13,7 @@ import (
 	"golang.org/x/image/font/opentype"
 )
 
-// font by:
+// font from (CC0):
 // https://managore.itch.io/m5x7
 
 //go:embed m5x7.ttf
@@ -28,7 +28,7 @@ func main() {
 	ebiten.SetWindowTitle("microui-go + ebitengine")
 	ctx := mu.NewContext()
 	g := &game{
-		uidriver: ebitenui.New(ctx, ebitenui.WithDefaultFont(normalFont)),
+		uidriver: ebitenui.New(ctx, ebitenui.WithDefaultFont(normalFont), ebitenui.WithDefaultFontOffset(0, 12)),
 		ctx:      ctx,
 	}
 	if err := ebiten.RunGame(g); err != nil {

@@ -12,6 +12,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font"
 )
 
 type Driver interface {
@@ -19,7 +21,7 @@ type Driver interface {
 	Draw(screen *ebiten.Image)
 }
 
-type renderer struct {
+type driver struct {
 	options  driverOptions
 	ctx      *microui.Context
 	commands []drawCommand
@@ -33,11 +35,18 @@ type driverOptions struct {
 	AtlasRects        []microui.Rect
 	ScrollMultiplierX float64
 	ScrollMultiplierY float64
+	DefaultFont       font.Face
 }
 
 func WithAtlasTexture(tex *ebiten.Image) DriverOption {
 	return func(o *driverOptions) {
 		o.AtlasTexture = tex
+	}
+}
+
+func WithDefaultFont(ff font.Face) DriverOption {
+	return func(o *driverOptions) {
+		o.DefaultFont = ff
 	}
 }
 
@@ -57,7 +66,7 @@ func New(ctx *microui.Context, options ...DriverOption) Driver {
 	for _, o := range options {
 		o(opts)
 	}
-	r := &renderer{
+	r := &driver{
 		options:  *opts,
 		ctx:      ctx,
 		commands: make([]drawCommand, 0, 4096),
@@ -67,19 +76,16 @@ func New(ctx *microui.Context, options ...DriverOption) Driver {
 	ctx.SetRenderCommand(r.render)
 	ctx.SetBeginRender(r.beginFrame)
 	ctx.SetEndRender(func() {})
-	// ctx.SetEndRender(func() {
-	// 	rl.EndScissorMode()
-	// })
 	return r
 }
 
-func (r *renderer) UpdateInputs() {
+func (d *driver) UpdateInputs() {
 	x, y := ebiten.CursorPosition()
-	r.ctx.InputMouseMove(int32(x), int32(y))
+	d.ctx.InputMouseMove(int32(x), int32(y))
 
 	swx, swy := ebiten.Wheel()
 	if swx != 0 || swy != 0 {
-		r.ctx.InputScroll(int32(swx*r.options.ScrollMultiplierX), int32(swy*r.options.ScrollMultiplierY))
+		d.ctx.InputScroll(int32(swx*d.options.ScrollMultiplierX), int32(swy*d.options.ScrollMultiplierY))
 	}
 	var mbtns microui.MouseButton
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
@@ -93,7 +99,7 @@ func (r *renderer) UpdateInputs() {
 	}
 	if mbtns != 0 {
 		x, y := ebiten.CursorPosition()
-		r.ctx.InputMouseDown(int32(x), int32(y), mbtns)
+		d.ctx.InputMouseDown(int32(x), int32(y), mbtns)
 	}
 	var mbtnsUp microui.MouseButton
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -107,77 +113,86 @@ func (r *renderer) UpdateInputs() {
 	}
 	if mbtnsUp != 0 {
 		x, y := ebiten.CursorPosition()
-		r.ctx.InputMouseUp(int32(x), int32(y), mbtnsUp)
+		d.ctx.InputMouseUp(int32(x), int32(y), mbtnsUp)
 	}
-	r.charbuf = ebiten.AppendInputChars(r.charbuf)
-	if len(r.charbuf) > 0 {
-		r.ctx.InputText(string(r.charbuf))
-		r.charbuf = r.charbuf[:0]
+	d.charbuf = ebiten.AppendInputChars(d.charbuf)
+	if len(d.charbuf) > 0 {
+		d.ctx.InputText(string(d.charbuf))
+		d.charbuf = d.charbuf[:0]
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyControl) {
-		r.ctx.InputKeyDown(microui.KeyCtrl)
+		d.ctx.InputKeyDown(microui.KeyCtrl)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyShift) {
-		r.ctx.InputKeyDown(microui.KeyShift)
+		d.ctx.InputKeyDown(microui.KeyShift)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyAlt) {
-		r.ctx.InputKeyDown(microui.KeyAlt)
+		d.ctx.InputKeyDown(microui.KeyAlt)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyBackspace) {
-		r.ctx.InputKeyDown(microui.KeyBackspace)
+		d.ctx.InputKeyDown(microui.KeyBackspace)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
-		r.ctx.InputKeyDown(microui.KeyReturn)
+		d.ctx.InputKeyDown(microui.KeyReturn)
 	}
 
 	if inpututil.IsKeyJustReleased(ebiten.KeyControl) {
-		r.ctx.InputKeyUp(microui.KeyCtrl)
+		d.ctx.InputKeyUp(microui.KeyCtrl)
 	}
 	if inpututil.IsKeyJustReleased(ebiten.KeyShift) {
-		r.ctx.InputKeyUp(microui.KeyShift)
+		d.ctx.InputKeyUp(microui.KeyShift)
 	}
 	if inpututil.IsKeyJustReleased(ebiten.KeyAlt) {
-		r.ctx.InputKeyUp(microui.KeyAlt)
+		d.ctx.InputKeyUp(microui.KeyAlt)
 	}
 	if inpututil.IsKeyJustReleased(ebiten.KeyBackspace) {
-		r.ctx.InputKeyUp(microui.KeyBackspace)
+		d.ctx.InputKeyUp(microui.KeyBackspace)
 	}
 	if inpututil.IsKeyJustReleased(ebiten.KeyEnter) {
-		r.ctx.InputKeyUp(microui.KeyReturn)
+		d.ctx.InputKeyUp(microui.KeyReturn)
 	}
 }
 
-func (r *renderer) Draw(screen *ebiten.Image) {
-	r.ctx.Render()
+func (d *driver) Draw(screen *ebiten.Image) {
+	d.ctx.Render()
 	currentClip := screen
-	for _, cmd := range r.commands {
+	for _, cmd := range d.commands {
 		switch cmd.Type {
 		case commandTypeText:
-			r.drawText(currentClip, cmd.Text)
+			d.drawText(currentClip, cmd.Text)
 		case commandTypeRect:
-			r.drawRect(currentClip, cmd.Rect)
+			d.drawRect(currentClip, cmd.Rect)
 		case commandTypeIcon:
-			r.drawIcon(currentClip, cmd.Icon)
+			d.drawIcon(currentClip, cmd.Icon)
 		case commandTypeClip:
-			currentClip = r.drawClip(screen, cmd.Clip)
+			currentClip = d.drawClip(screen, cmd.Clip)
 		}
 	}
-	r.commands = r.commands[:0]
+	d.commands = d.commands[:0]
 }
 
-func (r *renderer) drawText(clip *ebiten.Image, cmd textCommand) {
-	if cmd.Font == nil {
+func (d *driver) drawText(clip *ebiten.Image, cmd textCommand) {
+	if cmd.Font == 0 && d.options.DefaultFont == nil {
 		// draw using default ebiten font
+		// the drawback is that the color cannot be changed
 		ebitenutil.DebugPrintAt(clip, cmd.Text, int(cmd.Pos.X), int(cmd.Pos.Y))
 		return
 	}
-	//TODO: draw using github.com/hajimehoshi/ebiten/v2/text
+	var ff font.Face
+	if cmd.Font == 0 {
+		ff = d.options.DefaultFont
+	} else {
+		ff = Font(cmd.Font)
+	}
+	// b := text.BoundString(ff, cmd.Text)
+	c := convertColor(cmd.Color)
+	text.Draw(clip, cmd.Text, ff, int(cmd.Pos.X), int(cmd.Pos.Y), c)
 }
 
-func (r *renderer) drawRect(clip *ebiten.Image, cmd rectCommand) {
-	rect := convertRect(r.options.AtlasRects[6])
-	subim := r.options.AtlasTexture.SubImage(rect).(*ebiten.Image)
+func (d *driver) drawRect(clip *ebiten.Image, cmd rectCommand) {
+	rect := convertRect(d.options.AtlasRects[6])
+	subim := d.options.AtlasTexture.SubImage(rect).(*ebiten.Image)
 	geom := ebiten.GeoM{}
 	geom.Scale(float64(cmd.Rect.W)/float64(rect.Dx()), float64(cmd.Rect.H)/float64(rect.Dy()))
 	geom.Translate(float64(cmd.Rect.X), float64(cmd.Rect.Y))
@@ -189,8 +204,8 @@ func (r *renderer) drawRect(clip *ebiten.Image, cmd rectCommand) {
 	})
 }
 
-func (r *renderer) drawIcon(clip *ebiten.Image, cmd iconCommand) {
-	iconimg := r.options.AtlasTexture.SubImage(convertRect(r.options.AtlasRects[cmd.ID])).(*ebiten.Image)
+func (d *driver) drawIcon(clip *ebiten.Image, cmd iconCommand) {
+	iconimg := d.options.AtlasTexture.SubImage(convertRect(d.options.AtlasRects[cmd.ID])).(*ebiten.Image)
 	geom := ebiten.GeoM{}
 	geom.Translate(float64(cmd.Rect.X), float64(cmd.Rect.Y))
 	cscale := ebiten.ColorScale{}
@@ -201,45 +216,45 @@ func (r *renderer) drawIcon(clip *ebiten.Image, cmd iconCommand) {
 	})
 }
 
-func (r *renderer) drawClip(screen *ebiten.Image, cmd clipCommand) *ebiten.Image {
+func (d *driver) drawClip(screen *ebiten.Image, cmd clipCommand) *ebiten.Image {
 	if cmd.Rect.W == 0 || cmd.Rect.H == 0 {
 		return nil
 	}
 	return screen.SubImage(convertRect(cmd.Rect)).(*ebiten.Image)
 }
 
-func (r *renderer) atlasSetup() {
-	if r.options.AtlasTexture != nil {
+func (d *driver) atlasSetup() {
+	if d.options.AtlasTexture != nil {
 		return
 	}
 	img, _, err := image.Decode(bytes.NewReader(defaultAtlasPNG))
 	if err != nil {
 		panic(fmt.Errorf("failed to decode default atlas: %w", err))
 	}
-	r.options.AtlasTexture = ebiten.NewImageFromImage(img)
+	d.options.AtlasTexture = ebiten.NewImageFromImage(img)
 }
 
-func (r *renderer) beginFrame() {
-	if len(r.commands) > 0 {
-		r.commands = r.commands[:0]
+func (d *driver) beginFrame() {
+	if len(d.commands) > 0 {
+		d.commands = d.commands[:0]
 	}
 }
 
-func (r *renderer) render(cmd *microui.Command) {
+func (d *driver) render(cmd *microui.Command) {
 	switch cmd.Type() {
 	case microui.CommandText:
-		r.putText(cmd.Text())
+		d.putText(cmd.Text())
 	case microui.CommandRect:
-		r.putRect(cmd.Rect())
+		d.putRect(cmd.Rect())
 	case microui.CommandIcon:
-		r.putIcon(cmd.Icon())
+		d.putIcon(cmd.Icon())
 	case microui.CommandClip:
-		r.putClip(cmd.Clip())
+		d.putClip(cmd.Clip())
 	}
 }
 
-func (r *renderer) putText(cmd microui.TextCommand) {
-	r.commands = append(r.commands, drawCommand{
+func (d *driver) putText(cmd microui.TextCommand) {
+	d.commands = append(d.commands, drawCommand{
 		Type: commandTypeText,
 		Text: textCommand{
 			Font:  cmd.Font(),
@@ -250,8 +265,8 @@ func (r *renderer) putText(cmd microui.TextCommand) {
 	})
 }
 
-func (r *renderer) putRect(cmd microui.RectCommand) {
-	r.commands = append(r.commands, drawCommand{
+func (d *driver) putRect(cmd microui.RectCommand) {
+	d.commands = append(d.commands, drawCommand{
 		Type: commandTypeRect,
 		Rect: rectCommand{
 			Rect:  cmd.Rect(),
@@ -260,8 +275,8 @@ func (r *renderer) putRect(cmd microui.RectCommand) {
 	})
 }
 
-func (r *renderer) putIcon(cmd microui.IconCommand) {
-	r.commands = append(r.commands, drawCommand{
+func (d *driver) putIcon(cmd microui.IconCommand) {
+	d.commands = append(d.commands, drawCommand{
 		Type: commandTypeIcon,
 		Icon: iconCommand{
 			ID:    cmd.ID(),
@@ -271,8 +286,8 @@ func (r *renderer) putIcon(cmd microui.IconCommand) {
 	})
 }
 
-func (r *renderer) putClip(cmd microui.ClipCommand) {
-	r.commands = append(r.commands, drawCommand{
+func (d *driver) putClip(cmd microui.ClipCommand) {
+	d.commands = append(d.commands, drawCommand{
 		Type: commandTypeClip,
 		Clip: clipCommand{
 			Rect: cmd.Rect(),

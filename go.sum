@@ -3,6 +3,8 @@ github.com/ebitengine/purego v0.3.0 h1:BDv9pD98k6AuGNQf3IF41dDppGBOe0F4AofvhFtBX
 github.com/ebitengine/purego v0.3.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/gabstv/microui-go v0.0.0-20221115111814-063189aa1dc0 h1:4uVfGHVC3Mp2FrGDQF6H5Eh1SEs3UxwZmG3C6xyvZVo=
 github.com/gabstv/microui-go v0.0.0-20221115111814-063189aa1dc0/go.mod h1:yQk/WiR/tFWkPRnpzw/D8DSyPLj3bTG6r/v78zHwUYs=
+github.com/gabstv/microui-go v0.0.0-20230516123025-e4a2f75a8a8c h1:+dOZY443RlOaRZWa22AlprYlzgMazl2S2lkz/cgaRug=
+github.com/gabstv/microui-go v0.0.0-20230516123025-e4a2f75a8a8c/go.mod h1:yQk/WiR/tFWkPRnpzw/D8DSyPLj3bTG6r/v78zHwUYs=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b h1:GgabKamyOYguHqHjSkDACcgoPIz3w0Dis/zJ1wyHHHU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20221017161538-93cebf72946b/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/hajimehoshi/bitmapfont/v2 v2.2.3 h1:jmq/TMNj352V062Tr5e3hAoipkoxCbY1JWTzor0zNps=

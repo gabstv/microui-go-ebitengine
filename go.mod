@@ -3,7 +3,7 @@ module github.com/gabstv/microui-go-ebitengine
 go 1.20
 
 require (
-	github.com/gabstv/microui-go v0.0.0-20230516123025-e4a2f75a8a8c
+	github.com/gabstv/microui-go v0.0.1
 	github.com/hajimehoshi/ebiten/v2 v2.5.4
 	golang.org/x/image v0.6.0
 )

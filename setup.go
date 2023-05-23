@@ -3,6 +3,7 @@ package muiebitengine
 import (
 	_ "embed"
 	_ "image/png"
+	"sync"
 
 	"github.com/gabstv/microui-go/microui"
 )
@@ -29,6 +30,21 @@ var (
 	}
 )
 
+var currentDriver Driver
+var currentDriverLock sync.Mutex
+
+func getCurrentDriver() Driver {
+	currentDriverLock.Lock()
+	defer currentDriverLock.Unlock()
+	return currentDriver
+}
+
+func setCurrentDriver(d Driver) {
+	currentDriverLock.Lock()
+	defer currentDriverLock.Unlock()
+	currentDriver = d
+}
+
 func init() {
 	const (
 		cw = 6
@@ -36,14 +52,22 @@ func init() {
 	)
 	microui.DefaultGetTextWidth = func(font microui.Font, text string) int32 {
 		if font == 0 {
-			return cw * int32(len([]rune(text)))
+			d := getCurrentDriver()
+			if d == nil || d.DefaultFont() == nil {
+				return cw * int32(len([]rune(text)))
+			}
+			return d.DefaultFont().TextWidth(text)
 		}
 		f := GetFont(font)
 		return f.TextWidth(text)
 	}
 	microui.DefaultGetTextHeight = func(font microui.Font) int32 {
 		if font == 0 {
-			return ch
+			d := getCurrentDriver()
+			if d == nil || d.DefaultFont() == nil {
+				return ch
+			}
+			return d.DefaultFont().TextHeight()
 		}
 		f := GetFont(font)
 		return f.TextHeight()

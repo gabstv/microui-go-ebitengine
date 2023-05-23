@@ -9,7 +9,6 @@ import (
 	"github.com/gabstv/microui-go/demo"
 	mu "github.com/gabstv/microui-go/microui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -33,10 +32,11 @@ func main() {
 			Face:    normalFont,
 			OffsetX: 0,
 			OffsetY: 12,
-			GetTextWidth: func(str string) int32 {
-				ww := text.BoundString(normalFont, str).Dx()
-				return int32(float64(ww) * 1.1)
-			},
+			// text width and height can be overriden
+			// GetTextWidth: func(str string) int32 {
+			// 	ww := text.BoundString(normalFont, str).Dx()
+			// 	return int32(float64(ww) * 1.1)
+			// },
 		})),
 		ctx: ctx,
 	}

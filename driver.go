@@ -17,6 +17,7 @@ import (
 type Driver interface {
 	UpdateInputs()
 	Draw(screen *ebiten.Image)
+	DefaultFont() Font
 }
 
 type driver struct {
@@ -74,8 +75,18 @@ func New(ctx *microui.Context, options ...DriverOption) Driver {
 	r.atlasSetup()
 	ctx.SetRenderCommand(r.render)
 	ctx.SetBeginRender(r.beginFrame)
-	ctx.SetEndRender(func() {})
+	ctx.SetEndRender(r.endFrame)
+	ctx.SetBeginCallback(func() {
+		setCurrentDriver(r)
+	})
+	ctx.SetEndCallback(func() {
+		setCurrentDriver(nil)
+	})
 	return r
+}
+
+func (d *driver) DefaultFont() Font {
+	return GetFont(d.options.DefaultFont)
 }
 
 func (d *driver) UpdateInputs() {
@@ -154,7 +165,9 @@ func (d *driver) UpdateInputs() {
 }
 
 func (d *driver) Draw(screen *ebiten.Image) {
+	setCurrentDriver(d)
 	d.ctx.Render()
+	setCurrentDriver(nil)
 	currentClip := screen
 	for _, cmd := range d.commands {
 		switch cmd.Type {
@@ -249,6 +262,10 @@ func (d *driver) beginFrame() {
 	if len(d.commands) > 0 {
 		d.commands = d.commands[:0]
 	}
+}
+
+func (d *driver) endFrame() {
+
 }
 
 func (d *driver) render(cmd *microui.Command) {

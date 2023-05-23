@@ -12,8 +12,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text"
-	"golang.org/x/image/font"
 )
 
 type Driver interface {
@@ -31,13 +29,11 @@ type driver struct {
 type DriverOption func(*driverOptions)
 
 type driverOptions struct {
-	AtlasTexture       *ebiten.Image
-	AtlasRects         []microui.Rect
-	ScrollMultiplierX  float64
-	ScrollMultiplierY  float64
-	DefaultFont        font.Face
-	DefaultFontOffsetX int
-	DefaultFontOffsetY int
+	AtlasTexture      *ebiten.Image
+	AtlasRects        []microui.Rect
+	ScrollMultiplierX float64
+	ScrollMultiplierY float64
+	DefaultFont       microui.Font
 }
 
 func WithAtlasTexture(tex *ebiten.Image) DriverOption {
@@ -46,16 +42,10 @@ func WithAtlasTexture(tex *ebiten.Image) DriverOption {
 	}
 }
 
-func WithDefaultFont(ff font.Face) DriverOption {
+func WithDefaultFont(f Font) DriverOption {
 	return func(o *driverOptions) {
-		o.DefaultFont = ff
-	}
-}
-
-func WithDefaultFontOffset(x, y int) DriverOption {
-	return func(o *driverOptions) {
-		o.DefaultFontOffsetX = x
-		o.DefaultFontOffsetY = y
+		id := UIFont(f)
+		o.DefaultFont = id
 	}
 }
 
@@ -185,27 +175,24 @@ func (d *driver) drawText(clip *ebiten.Image, cmd textCommand) {
 	if clip == nil {
 		return
 	}
-	if cmd.Font == 0 && d.options.DefaultFont == nil {
+	if cmd.Font == 0 && d.options.DefaultFont == 0 {
 		// draw using default ebiten font
 		// the drawback is that the color cannot be changed
 		ebitenutil.DebugPrintAt(clip, cmd.Text, int(cmd.Pos.X), int(cmd.Pos.Y))
 		return
 	}
-	var ff font.Face
-	var offx, offy int
 	if cmd.Font == 0 {
-		ff = d.options.DefaultFont
-		offx = d.options.DefaultFontOffsetX
-		offy = d.options.DefaultFontOffsetY
-	} else {
-		w := Font(cmd.Font)
-		ff = w.Face
-		offx = w.OffsetX
-		offy = w.OffsetY
+		f := GetFont(d.options.DefaultFont)
+		c := convertColor(cmd.Color)
+		f.Draw(clip, cmd.Text, int(cmd.Pos.X), int(cmd.Pos.Y), c)
+		return
 	}
-	// b := text.BoundString(ff, cmd.Text)
+	f := GetFont(cmd.Font)
+	if f == nil {
+		panic(fmt.Errorf("font %d not found", cmd.Font))
+	}
 	c := convertColor(cmd.Color)
-	text.Draw(clip, cmd.Text, ff, int(cmd.Pos.X)+offx, int(cmd.Pos.Y)+offy, c)
+	f.Draw(clip, cmd.Text, int(cmd.Pos.X), int(cmd.Pos.Y), c)
 }
 
 func (d *driver) drawRect(clip *ebiten.Image, cmd rectCommand) {

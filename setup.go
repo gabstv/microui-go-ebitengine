@@ -5,7 +5,6 @@ import (
 	_ "image/png"
 
 	"github.com/gabstv/microui-go/microui"
-	ebtext "github.com/hajimehoshi/ebiten/v2/text"
 )
 
 //go:embed default_atlas.png
@@ -39,24 +38,14 @@ func init() {
 		if font == 0 {
 			return cw * int32(len([]rune(text)))
 		}
-		ff := Font(font)
-		if ff.GetTextWidth != nil {
-			return ff.GetTextWidth(text)
-		}
-		r := ebtext.BoundString(ff, text)
-		//TODO: test
-		return int32(r.Dx())
+		f := GetFont(font)
+		return f.TextWidth(text)
 	}
 	microui.DefaultGetTextHeight = func(font microui.Font) int32 {
-		if uintptr(font) == 0 {
+		if font == 0 {
 			return ch
 		}
-		ff := Font(font)
-		if ff.GetTextHeight != nil {
-			return ff.GetTextHeight()
-		}
-		r := ebtext.BoundString(ff, "A")
-		//TODO: test
-		return int32(r.Dy())
+		f := GetFont(font)
+		return f.TextHeight()
 	}
 }

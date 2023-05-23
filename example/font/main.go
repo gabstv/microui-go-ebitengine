@@ -9,6 +9,7 @@ import (
 	"github.com/gabstv/microui-go/demo"
 	mu "github.com/gabstv/microui-go/microui"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 )
@@ -28,8 +29,16 @@ func main() {
 	ebiten.SetWindowTitle("microui-go + ebitengine")
 	ctx := mu.NewContext()
 	g := &game{
-		uidriver: ebitenui.New(ctx, ebitenui.WithDefaultFont(normalFont), ebitenui.WithDefaultFontOffset(0, 12)),
-		ctx:      ctx,
+		uidriver: ebitenui.New(ctx, ebitenui.WithDefaultFont(&ebitenui.FontFaceWrapper{
+			Face:    normalFont,
+			OffsetX: 0,
+			OffsetY: 12,
+			GetTextWidth: func(str string) int32 {
+				ww := text.BoundString(normalFont, str).Dx()
+				return int32(float64(ww) * 1.1)
+			},
+		})),
+		ctx: ctx,
 	}
 	if err := ebiten.RunGame(g); err != nil {
 		panic(err)

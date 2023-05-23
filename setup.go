@@ -40,6 +40,9 @@ func init() {
 			return cw * int32(len([]rune(text)))
 		}
 		ff := Font(font)
+		if ff.GetTextWidth != nil {
+			return ff.GetTextWidth(text)
+		}
 		r := ebtext.BoundString(ff, text)
 		//TODO: test
 		return int32(r.Dx())
@@ -49,6 +52,9 @@ func init() {
 			return ch
 		}
 		ff := Font(font)
+		if ff.GetTextHeight != nil {
+			return ff.GetTextHeight()
+		}
 		r := ebtext.BoundString(ff, "A")
 		//TODO: test
 		return int32(r.Dy())

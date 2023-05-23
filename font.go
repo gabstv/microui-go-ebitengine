@@ -17,8 +17,10 @@ var (
 
 type FontWrapper struct {
 	font.Face
-	OffsetX int
-	OffsetY int
+	OffsetX       int
+	OffsetY       int
+	GetTextWidth  func(text string) int32
+	GetTextHeight func() int32
 }
 
 func FontID(ff font.Face) microui.Font {
